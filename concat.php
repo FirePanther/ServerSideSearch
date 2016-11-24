@@ -7,8 +7,11 @@
  * @license          MIT License
  */
 chdir(__DIR__);
+
+$dev = $argc ? $argv[1] == 'dev' : false;
+
 $source = '<?php'.
-	getPhp('src/config.php', file_exists('src/config.sample.php')).
+	getPhp('src/config.php', $dev).
 	loadAsVar([
 		'style' => 'src/style.css'
 	]).
@@ -21,11 +24,10 @@ file_put_contents('sss.php', $source);
 /**
  * get the content of the php file 
  */
-function getPhp($file, $bypassPassword = false) {
+function getPhp($file, $dev = false) {
 	if (!file_exists($file)) throw new Exception('File doesn\'t exist: '.$file);
 	$src = file_get_contents($file);
-	if ($bypassPassword) {
-		// removes the default password (for testings)
+	if (!$dev) {
 		$src = preg_replace('~(\$password\s*=\s*)(\'|")(.*?)\\2~', '$1$2$2', $src);
 	}
 	$src = trim(preg_replace('~^\s*<\?(php)?\s*~i', '', $src));

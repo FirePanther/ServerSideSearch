@@ -15,6 +15,9 @@ module.exports = grunt => {
 		shell: {
 			concat: {
 				command: 'php -f concat.php'
+			},
+			concatDev: {
+				command: 'php -f concat.php dev'
 			}
 		},
 		sass: {
@@ -28,13 +31,14 @@ module.exports = grunt => {
 				}
 			}
 		},
+		// just for development
 		watch: {
 			options: {
 				interrupt: true
 			},
 			php: {
 				files: 'src/*.php',
-				tasks: 'shell:concat',
+				tasks: 'shell:concatDev',
 			},
 			scss: {
 				files: 'src/*.scss',
@@ -43,5 +47,6 @@ module.exports = grunt => {
 		}
 	});
 	
+	grunt.registerTask('dev', ['sass', 'shell:concatDev', 'watch']);
 	grunt.registerTask('default', ['sass', 'shell:concat']);
 };
