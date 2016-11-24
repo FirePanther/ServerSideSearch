@@ -403,13 +403,13 @@ class Main {
 	 * search for files (+ their content) and folders
 	 */
 	private function search($pathArr, $q) {
-		$regex = isset($_POST['regex']) && $_POST['regex'] ? true : false;
-		$case = isset($_POST['case']) && $_POST['case'] ? true : false;
-		$maxSize = isset($_POST['maxSize']) ? $_POST['maxSize'] : 2;
+		$regex = isset($_REQUEST['regex']) && $_REQUEST['regex'] !== '0' ? true : false;
+		$case = isset($_REQUEST['case']) && $_REQUEST['case'] !== '0' ? true : false;
+		$maxSize = isset($_REQUEST['maxSize']) && $_REQUEST['maxSize'] ? (float)$_REQUEST['maxSize'] : 2;
 		$this->html('searchBox', [
 			'q' => $q,
-			'regexChecked' => $regex ? ' chechked' : '',
-			'caseChecked' => $case ? ' chechked' : '',
+			'regexChecked' => $regex ? ' checked' : '',
+			'caseChecked' => $case ? ' checked' : '',
 			'maxSize' => $maxSize
 		]);
 		
@@ -431,7 +431,11 @@ class Main {
 				$this->body .= '<div class="label" id="results">'.($results >= 100 ? '99+' : $results).' Result'.($results == 1 ? '' : 's').'</div>';
 				foreach ($list as $f) {
 					$fileHref = $this->getHref([
-						'path' => $f
+						'path' => $f,
+						'qb' => $q,
+						'regex' => $regex,
+						'case' => $case,
+						'maxSize' => $maxSize
 					], null, ['q']);
 					$size = $this->fileSize($f, microtime(1));
 					$ext = pathinfo(basename($f), PATHINFO_EXTENSION);
@@ -497,6 +501,19 @@ class Main {
 		$action = 'info';
 		if (isset($_GET['action']) && in_array($_GET['action'], ['view', 'edit'])) {
 			$action = $_GET['action'];
+		}
+		
+		// search query backup (back to search)
+		if (isset($_GET['qb'])) {
+			$searchHref = $this->getHref([
+				'q' => $_GET['qb']
+			], null, ['qb']);
+			$this->html('listItemBack', [
+				'parentFolderHref' => $searchHref,
+				'icon' => $this->icon('magnify', '000'),
+				'label' => 'back to',
+				'parentFolderName' => 'Search "'.$_GET['qb'].'"'
+			]);
 		}
 		
 		switch ($action) {
@@ -685,7 +702,7 @@ function icons() { return [
 ]; }
 function htmls() { return [
 	'breadcrumb' => '<div class="listItem">'.PHP_EOL.'	<div class="breadcrumb">'.PHP_EOL.'		:@breadcrumb'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
-	'code' => '<div class="code">'.PHP_EOL.'	:code'.PHP_EOL.'</div>',
+	'code' => '<div class="code">'.PHP_EOL.'	:@code'.PHP_EOL.'</div>',
 	'emptyFolderMessage' => '<div class="notice">Empty Folder</div>',
 	'errorMessage' => '<section id="wrapper">'.PHP_EOL.'	<form method="post">'.PHP_EOL.'		<div class="loginBox">'.PHP_EOL.'			<header>Login</header>'.PHP_EOL.'			<div class="content">'.PHP_EOL.'				:@error'.PHP_EOL.'				<div class="formElement">'.PHP_EOL.'					<input type="text" required class="hasPlaceholder" name="username">'.PHP_EOL.'					<div class="isPlaceholder">Username</div>'.PHP_EOL.'				</div>'.PHP_EOL.'				<div class="formElement">'.PHP_EOL.'					<input type="password" required class="hasPlaceholder" name="password">'.PHP_EOL.'					<div class="isPlaceholder">Password</div>'.PHP_EOL.'				</div>'.PHP_EOL.'				<div class="formElement right">'.PHP_EOL.'					<input type="submit" value="Login" class="button">'.PHP_EOL.'				</div>'.PHP_EOL.'			</div>'.PHP_EOL.'		</div>'.PHP_EOL.'	</form>'.PHP_EOL.'</section>',
 	'fileInfoButtons' => '<div class="buttonsContainer">'.PHP_EOL.'	<a href=":viewHref" class="button">View</a>'.PHP_EOL.'</div>',
