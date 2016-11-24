@@ -11,12 +11,28 @@ class Main {
 	 * selects the page to show
 	 */
 	function __construct() {
-		$this->icons = icons();
+		$this->config();
 		if ($this->isLoggedIn()) {
 			$this->setPage('index');
 		} else {
 			$this->setPage('login');
 		}
+	}
+	
+	/**
+	 * does some configurations
+	 */
+	private function config() {
+		// load templates
+		$this->icons = icons();
+		$this->htmls = htmls();
+		
+		// inspired by githubs colors
+		ini_set('highlight.comment', '#969896');
+		ini_set('highlight.default', '#333');
+		ini_set('highlight.html', '#795da3');
+		ini_set('highlight.keyword', '#a71d5d');
+		ini_set('highlight.string', '#0086b3');
 	}
 	
 	/**

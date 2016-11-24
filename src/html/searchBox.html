@@ -1,0 +1,42 @@
+<div class="searchBox">
+	<header>Search</header>
+	<div class="content">
+		<form method="post" action="#results">
+			<div class="formElement">
+				<input type="search" required name="q" value=":q" class="hasPlaceholder">
+				<div class="isPlaceholder">Search</div>
+			</div>
+			<div class="formElement">
+				<table class="listTable">
+					<tr>
+						<td class="key">Regular Expressions</td>
+						<td class="value">
+							<div class="checkbox">
+								<input type="checkbox" name="regex" id="regex":regexChecked>
+								<label for="regex"></label>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td class="key">Case sensitive</td>
+						<td class="value">
+							<div class="checkbox">
+								<input type="checkbox" name="case" id="case":caseChecked>
+								<label for="case"></label>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td class="key">Ignore larger files</td>
+						<td class="value">
+							<input class="input number" type="number" value=":maxSize" name="maxSize" step=".1"> MB+
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="formElement right">
+				<input type="submit" class="button" value="Search">
+			</div>
+		</form>
+	</div>
+</div>
