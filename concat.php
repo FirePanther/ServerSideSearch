@@ -17,7 +17,8 @@ $source = '<?php'.
 	]).
 	getPhp('src/header.php').
 	getPhp('src/main.class.php').
-	generateIconsSrc();
+	generateIconsSrc().
+	generateHtmlSrc();
 
 file_put_contents('sss.php', $source);
 
@@ -71,5 +72,23 @@ function generateIconsSrc() {
 			}
 		}
 	}
-	return $iconsPhpSrc.PHP_EOL.']; }';
+	return $iconsPhpSrc.PHP_EOL.']; }'.PHP_EOL;
+}
+
+/**
+ * generates a php function with all svg icons from src/icons/
+ */
+function generateHtmlSrc() {
+	$htmlPhpSrc = 'function htmls() { return [';
+	
+	$htmls = glob('src/html/*.html');
+	foreach ($htmls as $html) {
+		$name = str_replace('\'', '\\\'', basename($html, '.html'));
+		
+		$src = str_replace('\'', '\\\'', file_get_contents($html));
+		$src = str_replace(["\r\n", "\r", "\n"], '\'.PHP_EOL.\'', $src);
+		$htmlPhpSrc .= PHP_EOL.'	\''.$name.'\' => '.
+			'\''.$src.'\',';
+	}
+	return $htmlPhpSrc.PHP_EOL.']; }'.PHP_EOL;
 }
