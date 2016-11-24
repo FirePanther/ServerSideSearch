@@ -5,7 +5,7 @@
  * @license          MIT License
  */
 class Main {
-	private $content = true, $title = '', $body = '', $icons = [];
+	private $content = true, $title = '', $body = '', $icons = [], $htmls = [];
 	
 	/**
 	 * selects the page to show
