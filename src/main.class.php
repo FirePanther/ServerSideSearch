@@ -51,76 +51,63 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * returns the source of an icon with the color
 	 */
 	private function icon($name, $forceColor = null) {
 		return
 			'<?xml version="1.0" encoding="UTF-8"?'.'>'.
-			//'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'.
 			'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="24" height="24" viewBox="0 0 24 24">'.
 				str_replace('<path', '<path fill="'.($forceColor !== null ? $forceColor : '#'.$this->icons[$name][1]).'"', $this->icons[$name][0]).
 			'</svg>';
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * identifies the icon from the file type
 	 */
 	private function iconByFile($file, $returnName = false) {
 		if (is_link($file)) $icon = 'link';
 		elseif (is_dir($file)) $icon = 'folder';
 		else {
 			$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-			switch ($ext) {
-				case 'php':
-				case 'phtml': // lol
-				case 'php3':
-				case 'php4':
-				case 'ph3':
-				case 'ph4':
-					$icon = 'php';
+			$icon = 'file';
+			$icons = [
+				'php' => ['php'],
+				'html' => ['html', 'htm', 'xml'],
+				'image' => ['png', 'bmp', 'gif', 'jpg', 'jpeg'],
+				'css' => ['css', 'less', 'sass', 'scss'],
+				'js' => ['js', 'coffee', 'ts'],
+				'text' => ['txt', 'rtf', 'ini', 'htaccess', 'htpasswd'],
+				'archive' => ['zip', 'rar', 'tar', 'gz', 'bz', 'bz2', '7zip']
+			];
+			foreach ($icons as $i => $exts) {
+				if (in_array($ext, $exts)) {
+					$icon = $i;
 					break;
-				case 'html':
-				case 'htm':
-				case 'xml':
-					$icon = 'html';
-					break;
-				case 'png':
-				case 'bmp':
-				case 'gif':
-				case 'jpg':
-				case 'jpeg':
-					$icon = 'image';
-					break;
-				case 'css':
-					$icon = 'css';
-					break;
-				case 'js':
-					$icon = 'js';
-					break;
-				case 'txt':
-				case 'rtf':
-				case 'ini':
-				case 'htaccess':
-				case 'htpasswd':
-					$icon = 'text';
-					break;
-				case 'zip':
-				case 'rar':
-				case 'tar':
-				case 'gz':
-				case 'bz':
-				case 'bz2':
-					$icon = 'archive';
-					break;
-				default:
-					$icon = 'file';
+				}
 			}
 		}
 		return $returnName ? $icon : $this->icon($icon);
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * parses the variables and returns the html
+	 */
+	private function html($name, $vars = [], $return = false) {
+		if (isset($this->htmls[$name])) {
+			$src = $this->htmls[$name];
+			foreach ($vars as $k => $v) {
+				$src = str_replace(":@$k", $v, $src);
+				$src = str_replace(":$k", htmlspecialchars($v), $src);
+			}
+			if ($return) return $src;
+			else $this->body .= $src;
+		} else {
+			throw new Exception('HTML template "'.htmlspecialchars($name).'" doesn\'t exist.');
+		}
+	}
+	
+	/**
+	 * redirects to the url and exits the script
 	 */
 	private function redirect($url) {
 		header('location: '.$url);
@@ -128,7 +115,7 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * formats a number and adds a unit
 	 */
 	private function formatSize($i) {
 		$unit = 0;
@@ -141,11 +128,11 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * determines the file or folder size
 	 */
 	private function fileSize($file, $starttime) {
 		$size = 0;
-		$timeout = 1; // in seconds, per folder
+		$timeout = .2; // in seconds, per folder
 		$cancelled = false;
 		if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
 		
@@ -168,7 +155,7 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
+	 * creates a href link, adds and removes parameters
 	 */
 	private function getHref($newParams = [], $params = null, $remove = []) {
 		if ($params === null) {
@@ -205,7 +192,8 @@ class Main {
 	}
 	
 	/**
-	 * returns the pages body (content)
+	 * highlights the content; if it's not a php source, try to highlight it
+	 * as well
 	 */
 	public function highlight($file) {
 		$src = file_get_contents($file);
@@ -257,21 +245,14 @@ class Main {
 				}
 				if ($last) $breadcrumb .= '<strong>'.htmlspecialchars($last).'</strong>'.($isFile || $q !== null ? '' : '/');
 				
-				$this->body = '
-					<section id="wrapper">
-						<header>
-							<span>Index</span>
-							'.($q !== null ? '' : 
-								'<a href="'.$this->getHref([ 'q' => '' ]).'" class="iconButton">'.$this->icon('magnify').'</a>'
-							).'
-						</header>
-						<div class="content">';
-				$this->body .= '
-					<div class="listItem">
-						<div class="breadcrumb">
-							'.$breadcrumb.'
-						</div>
-					</div>';
+				$this->body = $this->html('indexHeader', [
+					'search' => ($q !== null ? '' : 
+						'<a href="'.$this->getHref([ 'q' => '' ]).'" class="iconButton">'.$this->icon('magnify').'</a>'
+					)
+				], true);
+				$this->html('breadcrumb', [
+					'breadcrumb' => $breadcrumb
+				]);
 				if ($q !== null) {
 					$this->search($pathArr, $q);
 				} elseif ($isFile) {
@@ -291,28 +272,9 @@ class Main {
 					}
 				}
 				$this->title = 'Login';
-				$this->body = '
-					<section id="wrapper">
-						<form method="post">
-							<div class="loginBox">
-								<header>Login</header>
-								<div class="content">
-									'.($error ? '<div class="error">'.$error.'</div>' : '').'
-									<div class="formElement">
-										<input type="text" required class="hasPlaceholder" name="username">
-										<div class="isPlaceholder">Username</div>
-									</div>
-									<div class="formElement">
-										<input type="password" required class="hasPlaceholder" name="password">
-										<div class="isPlaceholder">Password</div>
-									</div>
-									<div class="formElement right">
-										<input type="submit" value="Login" class="button">
-									</div>
-								</div>
-							</div>
-						</form>
-					</section>';
+				$this->body = $this->html('errorMessage', [
+					'error' => ($error ? '<div class="error">'.$error.'</div>' : '')
+				], true);
 				break;
 		}
 	}
@@ -324,49 +286,12 @@ class Main {
 		$regex = isset($_POST['regex']) && $_POST['regex'] ? true : false;
 		$case = isset($_POST['case']) && $_POST['case'] ? true : false;
 		$maxSize = isset($_POST['maxSize']) ? $_POST['maxSize'] : 2;
-		$this->body .= '
-			<div class="searchBox">
-				<header>Search</header>
-				<div class="content">
-					<form method="post" action="#results">
-						<div class="formElement">
-							<input type="search" required name="q" value="'.htmlspecialchars($q).'" class="hasPlaceholder">
-							<div class="isPlaceholder">Search</div>
-						</div>
-						<div class="formElement">
-							<table class="listTable">
-								<tr>
-									<td class="key">Regular Expressions</td>
-									<td class="value">
-										<div class="checkbox">
-											<input type="checkbox" name="regex" id="regex"'.($regex ? ' checked' : '').'>
-											<label for="regex"></label>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td class="key">Case sensitive</td>
-									<td class="value">
-										<div class="checkbox">
-											<input type="checkbox" name="case" id="case"'.($case ? ' checked' : '').'>
-											<label for="case"></label>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td class="key">Ignore larger files</td>
-									<td class="value">
-										<input class="input number" type="number" value="'.$maxSize.'" name="maxSize" step=".1"> MB+
-									</td>
-								</tr>
-							</table>
-						</div>
-						<div class="formElement right">
-							<input type="submit" class="button" value="Search">
-						</div>
-					</form>
-				</div>
-			</div>';
+		$this->html('searchBox', [
+			'q' => $q,
+			'regexChecked' => $regex ? ' chechked' : '',
+			'caseChecked' => $case ? ' chechked' : '',
+			'maxSize' => $maxSize
+		]);
 		
 		if (strlen($q)) {
 			global $regexErrorTest;
@@ -389,18 +314,16 @@ class Main {
 						'path' => $f
 					], null, ['q']);
 					$size = $this->fileSize($f, microtime(1));
-					$this->body .= '
-						<div class="listItem">
-							<div class="fileIcon">
-								<a href="'.$fileHref.'">'.$this->iconByFile($f).'</a>
-							</div>
-							<div class="fileName">
-								<a href="'.$fileHref.'">'.preg_replace('~\.[^.]*$~', '<span>$0</span>', htmlspecialchars(basename($f))).'</a>
-							</div>
-							<div class="fileActions">
-								'.($size[1] ? '&gt; ' : '').$this->formatSize($size[0]).'
-							</div>
-						</div>';
+					$ext = pathinfo(basename($f), PATHINFO_EXTENSION);
+					if ($ext) $ext = '.'.$ext;
+					$this->html('listItem', [
+						'fileHref' => $fileHref,
+						'fileIcon' => $this->iconByFile($f),
+						'fileName' => basename($f, $ext),
+						'fileExt' => $ext,
+						'gt' => ($size[1] ? '&gt; ' : ''),
+						'fileSize' => $this->formatSize($size[0])
+					]);
 				}
 			} else {
 				$this->body .= '<div class="notice error">'.htmlspecialchars($regexErrorTest).'</div>';
@@ -447,7 +370,8 @@ class Main {
 	}
 	
 	/**
-	 * list the content (files and folders) of a folder
+	 * shows information of the file after opening it, also has a preview of the
+	 * file.
 	 */
 	private function showFileInfo($path, $pathArr, $filename) {
 		$action = 'info';
@@ -478,7 +402,15 @@ class Main {
 						<tr>
 							<td class="key">File Name</td>
 							<td class="value">'.htmlspecialchars($filename).'</td>
-						</tr>
+						</tr>';
+				if (is_link($path)) {
+					$this->body .= '
+						<tr>
+							<td class="key">Original Location</td>
+							<td class="value">'.htmlspecialchars(readlink($path)).'</td>
+						</tr>';
+				}
+				$this->body .= '
 						<tr>
 							<td class="key">File Size</td>
 							<td class="value">'.$this->formatSize(filesize($path)).'</td>
