@@ -1,5 +1,9 @@
 <?php
 /**
+ * This file was generated. You can find the clean (uncompressed) source here:
+ * https://github.com/FirePanther/ServerSideSearch/tree/master/src
+ */
+/**
  * A little server side searching script. It allows you to quickly check out
  * your files and folders and gives you the ability to do some quick actions.
  *

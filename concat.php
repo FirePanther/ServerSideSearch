@@ -10,7 +10,11 @@ chdir(__DIR__);
 
 $dev = $argc ? $argv[1] == 'dev' : false;
 
-$source = '<?php'.
+$source = '<?php
+/**
+ * This file was generated. You can find the clean (uncompressed) source here:
+ * https://github.com/FirePanther/ServerSideSearch/tree/master/src
+ */'.
 	getPhp('src/config.php', $dev).
 	loadAsVar([
 		'style' => 'src/style.css'
