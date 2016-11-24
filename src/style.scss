@@ -253,6 +253,23 @@ header {
 }
 
 /**
+ * These lines fixes a problem where the placeholder is in the input while
+ * the input field is autofilled:
+ * https://github.com/FirePanther/ServerSideSearch/issues/1
+ *
+ * @source: http://stackoverflow.com/a/37432260/2284993
+ */
+@-webkit-keyframes autofill {
+	to {
+		background: #FFF;
+	}
+}
+input:-webkit-autofill {
+	-webkit-animation-name: autofill;
+	-webkit-animation-fill-mode: both;
+}
+
+/**
  * https://codepen.io/andreasstorm/pen/ZGjNwZ
  */
 .checkbox {
