@@ -54,11 +54,9 @@ class Main {
 	 * returns the source of an icon with the color
 	 */
 	private function icon($name, $forceColor = null) {
-		return
-			'<?xml version="1.0" encoding="UTF-8"?'.'>'.
-			'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="24" height="24" viewBox="0 0 24 24">'.
-				str_replace('<path', '<path fill="'.($forceColor !== null ? $forceColor : '#'.$this->icons[$name][1]).'"', $this->icons[$name][0]).
-			'</svg>';
+		return $this->html('svg', [
+			'icon' => str_replace('<path', '<path fill="'.($forceColor !== null ? $forceColor : '#'.$this->icons[$name][1]).'"', $this->icons[$name][0])
+		], true);
 	}
 	
 	/**
