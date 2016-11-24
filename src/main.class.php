@@ -40,7 +40,7 @@ class Main {
 	private function icon($name, $forceColor = null) {
 		return
 			'<?xml version="1.0" encoding="UTF-8"?'.'>'.
-			'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'.
+			//'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'.
 			'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="24" height="24" viewBox="0 0 24 24">'.
 				str_replace('<path', '<path fill="'.($forceColor !== null ? $forceColor : '#'.$this->icons[$name][1]).'"', $this->icons[$name][0]).
 			'</svg>';
@@ -127,11 +127,43 @@ class Main {
 	/**
 	 * (boolean) has this page any content?
 	 */
-	private function getHref($newParams = [], $params = null) {
+	private function fileSize($file, $starttime) {
+		$size = 0;
+		$timeout = 1; // in seconds, per folder
+		$cancelled = false;
+		if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
+		
+		if (is_dir($file)) {
+			$s = scandir($file);
+			foreach ($s as $f) {
+				if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
+				
+				if ($f == '.' || $f == '..') continue;
+				elseif (is_dir($file.'/'.$f)) {
+					$folderSize = $this->fileSize($file.'/'.$f, $starttime);
+					$size += $folderSize[0];
+					if ($folderSize[1]) $cancelled = true;
+				} else $size += @filesize($file.'/'.$f);
+			}
+		} else {
+			$size += @filesize($file);
+		}
+		return [$size, $cancelled];
+	}
+	
+	/**
+	 * (boolean) has this page any content?
+	 */
+	private function getHref($newParams = [], $params = null, $remove = []) {
 		if ($params === null) {
 			$params = $_GET;
 		}
 		$params = array_merge($params, $newParams);
+		if ($remove) {
+			foreach ($params as $k => $v) {
+				if (in_array($k, $remove)) unset($params[$k]);
+			}
+		}
 		return $_SERVER['PHP_SELF'].'?'.http_build_query($params);
 	}
 	
@@ -157,6 +189,23 @@ class Main {
 	}
 	
 	/**
+	 * returns the pages body (content)
+	 */
+	public function highlight($file) {
+		$src = file_get_contents($file);
+		$addedPhp = false;
+		if (strpos($src, '<?') === false) {
+			$src = '<? '.$src;
+			$addedPhp = true;
+		}
+		$hSrc = highlight_string($src, 1);
+		if ($addedPhp) {
+			$hSrc = implode('', explode('&lt;?&nbsp;', $hSrc, 2));
+		}
+		return $hSrc;
+	}
+	
+	/**
 	 * sets the page (defines title and body)
 	 */
 	private function setPage($name) {
@@ -171,23 +220,45 @@ class Main {
 				if (substr($path, -1) == '/') $path = substr($path, 0, -1);
 				if ($path === '') $path = '/';
 				
+				$q = isset($_REQUEST['q']) ? $_REQUEST['q'] : null;
+				
 				$breadcrumb = '/';
 				$pathArr = explode('/', substr($path, 1));
+				
+				if ($isFile && $q !== null) {
+					$isFIle = false;
+					array_pop($pathArr);
+				}
+				if ($q !== null) $pathArr[] = 'Search';
+				
 				$last = array_pop($pathArr);
 				$dirs = '';
 				foreach ($pathArr as $dir) {
 					$dirs .= '/'.$dir;
-					$breadcrumb .= ' <a href="'.$this->getHref([
+					$breadcrumb .= '<a href="'.$this->getHref([
 						'path' => $dirs
-					]).'" class="breadcrumbLink">'.htmlspecialchars($dir).'</a> /';
+					], null, ['q']).'">'.htmlspecialchars($dir).'</a>/';
 				}
-				if ($last) $breadcrumb .= ' '.htmlspecialchars($last).($isFile ? '' : ' /');
+				if ($last) $breadcrumb .= '<strong>'.htmlspecialchars($last).'</strong>'.($isFile || $q !== null ? '' : '/');
 				
 				$this->body = '
 					<section id="wrapper">
-						<header>Index of: '.$breadcrumb.'</header>
+						<header>
+							<span>Index</span>
+							'.($q !== null ? '' : 
+								'<a href="'.$this->getHref([ 'q' => '' ]).'" class="iconButton">'.$this->icon('magnify').'</a>'
+							).'
+						</header>
 						<div class="content">';
-				if ($isFile) {
+				$this->body .= '
+					<div class="listItem">
+						<div class="breadcrumb">
+							'.$breadcrumb.'
+						</div>
+					</div>';
+				if ($q !== null) {
+					$this->search($pathArr, $q);
+				} elseif ($isFile) {
 					$this->showFileInfo($path, $pathArr, $last);
 				} else {
 					$this->listFolderContent($path, $pathArr, $last);
@@ -231,6 +302,135 @@ class Main {
 	}
 	
 	/**
+	 * search for files (+ their content) and folders
+	 */
+	private function search($pathArr, $q) {
+		$regex = isset($_POST['regex']) && $_POST['regex'] ? true : false;
+		$case = isset($_POST['case']) && $_POST['case'] ? true : false;
+		$maxSize = isset($_POST['maxSize']) ? $_POST['maxSize'] : 2;
+		$this->body .= '
+			<div class="searchBox">
+				<header>Search</header>
+				<div class="content">
+					<form method="post" action="#results">
+						<div class="formElement">
+							<input type="search" required name="q" value="'.htmlspecialchars($q).'" class="hasPlaceholder">
+							<div class="isPlaceholder">Search</div>
+						</div>
+						<div class="formElement">
+							<table class="listTable">
+								<tr>
+									<td class="key">Regular Expressions</td>
+									<td class="value">
+										<div class="checkbox">
+											<input type="checkbox" name="regex" id="regex"'.($regex ? ' checked' : '').'>
+											<label for="regex"></label>
+										</div>
+									</td>
+								</tr>
+								<tr>
+									<td class="key">Case sensitive</td>
+									<td class="value">
+										<div class="checkbox">
+											<input type="checkbox" name="case" id="case"'.($case ? ' checked' : '').'>
+											<label for="case"></label>
+										</div>
+									</td>
+								</tr>
+								<tr>
+									<td class="key">Ignore larger files</td>
+									<td class="value">
+										<input class="input number" type="number" value="'.$maxSize.'" name="maxSize" step=".1"> MB+
+									</td>
+								</tr>
+							</table>
+						</div>
+						<div class="formElement right">
+							<input type="submit" class="button" value="Search">
+						</div>
+					</form>
+				</div>
+			</div>';
+		
+		if (strlen($q)) {
+			global $regexErrorTest;
+			$regexErrorTest = false;
+			if ($regex) {
+				set_error_handler(function($errno, $errstr) {
+					global $regexErrorTest;
+					$regexErrorTest = $errstr;
+					if (substr($regexErrorTest, 0, 14) == 'preg_match(): ') $regexErrorTest = substr($regexErrorTest, 14);
+				});
+				preg_match('/'.$q.'/i', 'test');
+				restore_error_handler();
+			}
+			if (!$regexErrorTest) {
+				$list = $this->startSearch('/'.implode('/', $pathArr), $q, $regex, $case, $maxSize * 1024 * 1024);
+				$results = count($list);
+				$this->body .= '<div class="label" id="results">'.($results >= 100 ? '99+' : $results).' Result'.($results == 1 ? '' : 's').'</div>';
+				foreach ($list as $f) {
+					$fileHref = $this->getHref([
+						'path' => $f
+					], null, ['q']);
+					$size = $this->fileSize($f, microtime(1));
+					$this->body .= '
+						<div class="listItem">
+							<div class="fileIcon">
+								<a href="'.$fileHref.'">'.$this->iconByFile($f).'</a>
+							</div>
+							<div class="fileName">
+								<a href="'.$fileHref.'">'.preg_replace('~\.[^.]*$~', '<span>$0</span>', htmlspecialchars(basename($f))).'</a>
+							</div>
+							<div class="fileActions">
+								'.($size[1] ? '&gt; ' : '').$this->formatSize($size[0]).'
+							</div>
+						</div>';
+				}
+			} else {
+				$this->body .= '<div class="notice error">'.htmlspecialchars($regexErrorTest).'</div>';
+			}
+		}
+	}
+	
+	/**
+	 * starts the (folder recursive) search
+	 */
+	private function startSearch($path, $q, $regex, $case, $maxSize) {
+		$limitResults = 100;
+		$queue = [];
+		$found = [];
+		$s = scandir($path);
+		foreach ($s as $f) {
+			if ($f == '.' || $f == '..') continue;
+			elseif (is_dir($path.'/'.$f)) $queue[] = $path.'/'.$f;
+			else {
+				if (@filesize($path.'/'.$f) <= $maxSize) {
+					// check source of file and file name
+					$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
+					
+					// I'm sorry, it's 2am
+					if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $src) ||
+						!$regex && (
+							$case && strpos($src, $q) !== false ||
+							!$case && stripos($src, $q) !== false
+						)) {
+						$found[] = $path.'/'.$f;
+					}
+				}
+			}
+			if (count($found) > $limitResults) break;
+		}
+		
+		if (count($found) < $limitResults && $queue) {
+			foreach ($queue as $dir) {
+				$found = array_merge($found, $this->startSearch($dir, $q, $regex, $case, $maxSize));
+				if (count($found) > $limitResults) break;
+			}
+		}
+		return $found;
+	}
+	
+	/**
 	 * list the content (files and folders) of a folder
 	 */
 	private function showFileInfo($path, $pathArr, $filename) {
@@ -242,7 +442,22 @@ class Main {
 		switch ($action) {
 			case 'info':
 				$fileType = $this->iconByFile($path, true);
+				
+				$parentFolderHref = $this->getHref([
+					'path' => '/'.implode('/', $pathArr)
+				]);
+				$parentFolderName = array_pop($pathArr);
+				if ($parentFolderName == '') $parentFolderName = 'root';
+				
 				$this->body .= '
+					<div class="listItem">
+						<div class="fileIcon">
+							<a href="'.$parentFolderHref.'">'.$this->icon('back').'</a>
+						</div>
+						<div class="fileName">
+							<a href="'.$parentFolderHref.'"><span>back to</span> '.htmlspecialchars($parentFolderName).'</a>
+						</div>
+					</div>
 					<table class="listTable">
 						<tr>
 							<td class="key">File Name</td>
@@ -305,15 +520,15 @@ class Main {
 				
 				$viewHref = $this->getHref(['action' => 'view']);
 				$this->body .= '
-					<div class="formItem">
-						<a href="'.$viewHref.'" class="linkButton">View</a>
+					<div class="buttonsContainer">
+						<a href="'.$viewHref.'" class="button">View</a>
 					</div>';
 				break;
 			case 'view':
 				$infoHref = $this->getHref(['action' => 'info']);
 				$this->body .= '
-					<div class="formItem">
-						<a href="'.$infoHref.'" class="linkButton">Back</a>
+					<div class="buttonsContainer">
+						<a href="'.$infoHref.'" class="button">Back</a>
 					</div>';
 				switch ($this->iconByFile($path, true)) {
 					case 'archive':
@@ -344,7 +559,7 @@ class Main {
 					default:
 						$this->body .= '
 							<div class="code">
-								'.highlight_file($path, 1).'
+								'.$this->highlight($path).'
 							</div>';
 						break;
 				}
@@ -356,31 +571,33 @@ class Main {
 	 * list the content (files and folders) of a folder
 	 */
 	private function listFolderContent($path, $pathArr, $dirname) {
+		if ($dirname !== '') {
+			$parentFolderHref = $this->getHref([
+				'path' => '/'.implode('/', $pathArr)
+			]);
+			$parentFolderName = array_pop($pathArr);
+			if ($parentFolderName == '') $parentFolderName = 'root';
+			$this->body .= '
+				<div class="listItem">
+					<div class="fileIcon">
+						<a href="'.$parentFolderHref.'">'.$this->icon('back').'</a>
+					</div>
+					<div class="fileName">
+						<a href="'.$parentFolderHref.'"><span>up to</span> '.htmlspecialchars($parentFolderName).'</a>
+					</div>
+				</div>';
+		}
+		
 		$s = scandir($path);
 		if (count($s) == 2) {
-			$this->body .= 'Empty Folder';
+			$this->body .= '<div class="notice">Empty Folder</div>';
 		} else {
-			if ($dirname !== '') {
-				$parentFolderHref = $this->getHref([
-					'path' => '/'.implode('/', $pathArr)
-				]);
-				$parentFolderName = array_pop($pathArr);
-				if ($parentFolderName == '') $parentFolderName = 'root';
-				$this->body .= '
-					<div class="listItem">
-						<div class="fileIcon">
-							<a href="'.$parentFolderHref.'">'.$this->icon('back', '000').'</a>
-						</div>
-						<div class="fileName">
-							<a href="'.$parentFolderHref.'"><span>up to</span> '.htmlspecialchars($parentFolderName).'</a>
-						</div>
-					</div>';
-			}
 			foreach ($s as $f) {
 				if ($f == '.' || $f == '..') continue;
 				$fileHref = $this->getHref([
 					'path' => $path.'/'.$f
 				]);
+				$size = $this->fileSize($path.'/'.$f, microtime(1));
 				$this->body .= '
 					<div class="listItem">
 						<div class="fileIcon">
@@ -390,7 +607,7 @@ class Main {
 							<a href="'.$fileHref.'">'.preg_replace('~\.[^.]*$~', '<span>$0</span>', htmlspecialchars($f)).'</a>
 						</div>
 						<div class="fileActions">
-							...
+							'.($size[1] ? '&gt; ' : '').$this->formatSize($size[0]).'
 						</div>
 					</div>';
 			}
