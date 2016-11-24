@@ -389,44 +389,39 @@ class Main {
 				$parentFolderName = array_pop($pathArr);
 				if ($parentFolderName == '') $parentFolderName = 'root';
 				
-				$this->body .= '
-					<div class="listItem">
-						<div class="fileIcon">
-							<a href="'.$parentFolderHref.'">'.$this->icon('back').'</a>
-						</div>
-						<div class="fileName">
-							<a href="'.$parentFolderHref.'"><span>back to</span> '.htmlspecialchars($parentFolderName).'</a>
-						</div>
-					</div>
-					<table class="listTable">
-						<tr>
-							<td class="key">File Name</td>
-							<td class="value">'.htmlspecialchars($filename).'</td>
-						</tr>';
+				$this->html('listItemBack', [
+					'parentFolderHref' => $parentFolderHref,
+					'icon' => $this->icon('back'),
+					'label' => 'back to',
+					'parentFolderName' => $parentFolderName
+				]);
+				$this->html('listTableStart');
+				$this->html('listTableRow', [
+					'key' => 'File Name',
+					'value' => $filename
+				]);
 				if (is_link($path)) {
-					$this->body .= '
-						<tr>
-							<td class="key">Original Location</td>
-							<td class="value">'.htmlspecialchars(readlink($path)).'</td>
-						</tr>';
+					$this->html('listTableRow', [
+						'key' => 'Original Location',
+						'value' => readlink($path)
+					]);
 				}
-				$this->body .= '
-						<tr>
-							<td class="key">File Size</td>
-							<td class="value">'.$this->formatSize(filesize($path)).'</td>
-						</tr>
-						<tr>
-							<td class="key">File Create Time</td>
-							<td class="value">'.date('Y-m-d, H:i (s)', filectime($path)).'</td>
-						</tr>
-						<tr>
-							<td class="key">File Modification Time</td>
-							<td class="value">'.date('Y-m-d, H:i (s)', filemtime($path)).'</td>
-						</tr>
-						<tr>
-							<td class="key">File Access Time</td>
-							<td class="value">'.date('Y-m-d, H:i (s)', fileatime($path)).'</td>
-						</tr>';
+				$this->html('listTableRow', [
+					'key' => 'File Size',
+					'value' => $this->formatSize(filesize($path))
+				]);
+				$this->html('listTableRow', [
+					'key' => 'File Create Time',
+					'value' => date('Y-m-d, H:i (s)', filectime($path))
+				]);
+				$this->html('listTableRow', [
+					'key' => 'File Modification Time',
+					'value' => date('Y-m-d, H:i (s)', filemtime($path))
+				]);
+				$this->html('listTableRow', [
+					'key' => 'File Access Time',
+					'value' => date('Y-m-d, H:i (s)', fileatime($path))
+				]);
 				if ($fileType == 'archive') {
 					$zip = @zip_open($path);
 					if (is_resource($zip)) {
@@ -436,48 +431,39 @@ class Main {
 							$num++;
 							$originalSize += zip_entry_filesize($zipFile);
 						}
-						$this->body .= '
-							<tr>
-								<td class="key">Archive Contains</td>
-								<td class="value">'.number_format($num, 0, '.', ' ').' File'.($num == 1 ? '' : 's').'</td>
-							</tr>';
-						$this->body .= '
-							<tr>
-								<td class="key">Original Size</td>
-								<td class="value">'.$this->formatSize($originalSize).'</td>
-							</tr>';
+						$this->html('listTableRow', [
+							'key' => 'Archive Contains',
+							'value' => number_format($num, 0, '.', ' ').' File'.($num == 1 ? '' : 's')
+						]);
+						$this->html('listTableRow', [
+							'key' => 'Original Size',
+							'value' => $this->formatSize($originalSize)
+						]);
 					}
 				} elseif ($fileType == 'image') {
 					list($width, $height, $type, $attr) = @getimagesize($path);
 					if ($width && $height) {
-						$this->body .= '
-							<tr>
-								<td class="key">Dimensions</td>
-								<td class="value">'.$width.' x '.$height.' px</td>
-							</tr>';
+						$this->html('listTableRow', [
+							'key' => 'Dimensions',
+							'value' => $width.' x '.$height
+						]);
 					}
 					if ($type) {
-						$this->body .= '
-							<tr>
-								<td class="key">Mime Type</td>
-								<td class="value">'.image_type_to_mime_type($type).'</td>
-							</tr>';
+						$this->html('listTableRow', [
+							'key' => 'Mime Type',
+							'value' => image_type_to_mime_type($type)
+						]);
 					}
 				}
-				$this->body .= '</table>';
-				
-				$viewHref = $this->getHref(['action' => 'view']);
-				$this->body .= '
-					<div class="buttonsContainer">
-						<a href="'.$viewHref.'" class="button">View</a>
-					</div>';
+				$this->html('listTableEnd');
+				$this->html('fileInfoButtons', [
+					'viewHref' => $this->getHref(['action' => 'view'])
+				]);
 				break;
 			case 'view':
-				$infoHref = $this->getHref(['action' => 'info']);
-				$this->body .= '
-					<div class="buttonsContainer">
-						<a href="'.$infoHref.'" class="button">Back</a>
-					</div>';
+				$this->html('fileViewButtons', [
+					'infoHref' => $this->getHref(['action' => 'info'])
+				]);
 				switch ($this->iconByFile($path, true)) {
 					case 'archive':
 						$this->body .= '<div class="label">Archive Content:</div>';
@@ -485,15 +471,13 @@ class Main {
 						if (is_resource($zip)) {
 							while ($zipFile = zip_read($zip)) {
 								$zipName = zip_entry_name($zipFile);
-								$this->body .= '
-									<div class="listItem">
-										<div class="fileIcon">
-											'.$this->iconByFile($zipName).'
-										</div>
-										<div class="fileName">
-											'.htmlspecialchars($zipName).'
-										</div>
-									</div>';
+								$ext = pathinfo($zipName, PATHINFO_EXTENSION);
+								if ($ext) $ext = '.'.$ext;
+								$this->html('listItemArchive', [
+									'fileIcon' => $this->iconByFile($zipName),
+									'fileName' => basename($zipName, $ext),
+									'fileExt' => $ext
+								]);
 							}
 						}
 						break;
@@ -501,14 +485,18 @@ class Main {
 						list($width, $height, $type, $attr) = @getimagesize($path);
 						if ($type) {
 							$mime = image_type_to_mime_type($type);
-							$this->body .= '<img src="data:'.$mime.';base64,'.base64_encode(file_get_contents($path)).'" class="imagePreview">';
+							$this->html('image', [
+								'mime' => $mime,
+								'base64' => base64_encode(file_get_contents($path)),
+								'alt' => 'preview of '.basename($path),
+								'class' => 'imagePreview'
+							]);
 						}
 						break;
 					default:
-						$this->body .= '
-							<div class="code">
-								'.$this->highlight($path).'
-							</div>';
+						$this->html('code', [
+							'code' => $this->highlight($path)
+						]);
 						break;
 				}
 				break;
@@ -525,20 +513,18 @@ class Main {
 			]);
 			$parentFolderName = array_pop($pathArr);
 			if ($parentFolderName == '') $parentFolderName = 'root';
-			$this->body .= '
-				<div class="listItem">
-					<div class="fileIcon">
-						<a href="'.$parentFolderHref.'">'.$this->icon('back').'</a>
-					</div>
-					<div class="fileName">
-						<a href="'.$parentFolderHref.'"><span>up to</span> '.htmlspecialchars($parentFolderName).'</a>
-					</div>
-				</div>';
+			
+			$this->html('listItemBack', [
+				'parentFolderHref' => $parentFolderHref,
+				'icon' => $this->icon('back'),
+				'label' => 'up to',
+				'parentFolderName' => $parentFolderName
+			]);
 		}
 		
 		$s = scandir($path);
 		if (count($s) == 2) {
-			$this->body .= '<div class="notice">Empty Folder</div>';
+			$this->html('emptyFolderMessage');
 		} else {
 			foreach ($s as $f) {
 				if ($f == '.' || $f == '..') continue;
@@ -546,18 +532,18 @@ class Main {
 					'path' => $path.'/'.$f
 				]);
 				$size = $this->fileSize($path.'/'.$f, microtime(1));
-				$this->body .= '
-					<div class="listItem">
-						<div class="fileIcon">
-							<a href="'.$fileHref.'">'.$this->iconByFile($path.'/'.$f).'</a>
-						</div>
-						<div class="fileName">
-							<a href="'.$fileHref.'">'.preg_replace('~\.[^.]*$~', '<span>$0</span>', htmlspecialchars($f)).'</a>
-						</div>
-						<div class="fileActions">
-							'.($size[1] ? '&gt; ' : '').$this->formatSize($size[0]).'
-						</div>
-					</div>';
+				
+				$ext = pathinfo($f, PATHINFO_EXTENSION);
+				if ($ext) $ext = '.'.$ext;
+				
+				$this->html('listItem', [
+					'fileHref' => $fileHref,
+					'fileIcon' => $this->iconByFile($path.'/'.$f),
+					'fileName' => basename($f, $ext),
+					'fileExt' => $ext,
+					'gt' => ($size[1] ? '&gt; ' : ''),
+					'fileSize' => $this->formatSize($size[0])
+				]);
 			}
 		}
 	}

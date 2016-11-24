@@ -23,7 +23,7 @@ module.exports = grunt => {
 		sass: {
 			dist: {
 				options: {
-					style: 'compressed',
+					style: 'compact',
 					sourcemap: 'none'
 				},
 				files: {
@@ -38,11 +38,19 @@ module.exports = grunt => {
 			},
 			php: {
 				files: 'src/*.php',
-				tasks: 'shell:concatDev',
+				tasks: 'shell:concatDev'
 			},
 			scss: {
 				files: 'src/*.scss',
-				tasks: ['sass', 'shell:concat'],
+				tasks: ['sass', 'shell:concatDev'],
+			},
+			html : {
+				files: 'src/html/*.html',
+				tasks: 'shell:concatDev'
+			},
+			icons : {
+				files: 'src/icons/*.svg',
+				tasks: 'shell:concatDev'
 			}
 		}
 	});
