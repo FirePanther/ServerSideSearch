@@ -1,5 +1,5 @@
 $mainColor: #5390F5;
-$mainColor2: #1F76C6;
+$mainColor2: #3C59D6;
 $mainColor3: #1F75CF;
 
 body {
@@ -12,11 +12,16 @@ body {
 a img {
 	border: 0;
 }
+
 header {
 	background-color: $mainColor;
 	color: #FFF;
 	padding: 20px;
 	font-size: 20px;
+	
+	.iconButton {
+		float: right;
+	}
 }
 
 .loginBox {
@@ -29,15 +34,25 @@ header {
 	height: 420px;
 	background-color: #FFF;
 	box-shadow: 10px 10px 50px rgba(0, 0, 0, .1);
+	
+	header {
+		padding: 60px 40px 10px;
+		font-size: 40px;
+	}
+	
+	.content {
+		padding: 40px;
+	}
 }
 
-.loginBox .header {
-	padding: 60px 40px 10px;
-	font-size: 40px;
-}
-
-.loginBox .content {
-	padding: 40px;
+.searchBox {
+	background-color: #FFF;
+	box-shadow: 10px 10px 50px rgba(0, 0, 0, .1);
+	margin: 20px;
+	
+	.content {
+		padding: 40px;
+	}
 }
 
 .right {
@@ -47,71 +62,92 @@ header {
 .error {
 	color: red;
 }
-
-.breadcrumbLink {
-	color: #FFF;
-	text-decoration: none;
-	box-shadow: 0 2px 0px rgba(255, 255, 255, .3);
-	transition: box-shadow 200ms linear;
+.notice {
+	margin: 20px;
 }
-.breadcrumbLink:hover {
-	box-shadow: 0 1px 0px rgba(255, 255, 255, 1);
+
+.breadcrumb {
+	padding: 10px 15px;
+	background-color: $mainColor2;
+	color: #CDF;
+	font-size: 11px;
+	
+	a {
+		font-size: 13px;
+		color: #CDF;
+		font-weight: bold;
+		padding: 0 5px;
+		
+		&:hover {
+			text-decoration: none;
+		}
+	}
+	
+	strong {
+		font-size: 13px;
+		padding: 0 5px;
+	}
 }
 
 .listItem {
 	background-color: #FFF;
 	border-bottom: 1px solid #D8D8D8;
-}
-.listItem:after {
-	content: "";
-	display: block;
-	clear: both;
-}
-.listItem .fileIcon {
-	display: inline-block;
-	padding: 15px 0 0 15px;
-	float: left;
-}
-.listItem .fileName {
-	display: inline-block;
-	padding: 15px;
-}
-.listItem .fileName a {
-	color: #000;
-	text-decoration: none;
-}
-.listItem .fileActions {
-	display: inline-block;
-	padding: 15px;
-	float: right;
-}
-
-.listItem .fileName span {
-	opacity: .5;
+	
+	&:after {
+		content: "";
+		display: block;
+		clear: both;
+	}
+	
+	.fileIcon {
+		display: inline-block;
+		padding: 15px 0 0 15px;
+		float: left;
+	}
+	.fileName {
+		display: inline-block;
+		padding: 15px;
+		
+		a {
+			color: #000;
+			text-decoration: none;
+		}
+		
+		span {
+			opacity: .5;
+		}
+	}
+	.fileActions {
+		display: inline-block;
+		padding: 15px;
+		float: right;
+	}
 }
 
 .listTable {
 	width: 100%;
 	background-color: #FFF;
-}
-
-.listTable td {
-	padding: 10px 15px;
-}
-
-.listTable td.key {
-	font-weight: bold;
-}
-.listTable td.value {
-	text-align: right;
+	border-bottom: 1px solid #D8D8D8;
+	
+	td {
+		padding: 10px 15px;
+		
+		&.key {
+			font-weight: bold;
+		}
+		
+		&.value {
+			text-align: right;
+		}
+	}
 }
 
 .code {
-	max-height: calc(100vh - 157px);
-	overflow: scroll;
+	box-sizing: border-box;
+	overflow-x: scroll;
 	padding: 10px;
 	background-color: #FFF;
-	margin: 10px 0;
+	margin: 10px 0 0;
 }
 
 .label {
@@ -130,6 +166,11 @@ header {
 .formElement {
 	padding: 25px 0 15px;
 }
+
+.buttonsContainer {
+	padding: 15px;
+}
+
 .button {
 	background-color: $mainColor;
 	border: 0;
@@ -142,13 +183,16 @@ header {
 	transition: all 200ms linear;
 	outline: 0;
 	text-decoration: none;
+
+	&:hover {
+		background-color: $mainColor2;
+	}
+	
+	&:active {
+		background-color: $mainColor3;
+	}
 }
-.button:hover {
-	background-color: $mainColor2;
-}
-.button:active {
-	background-color: $mainColor3;
-}
+
 .linkButton {
 	padding: 15px 25px;
 	color: $mainColor;
@@ -156,17 +200,25 @@ header {
 	text-transform: uppercase;
 	text-decoration: none;
 	font-size: 13px;
-}
-.linkButton:hover {
-	text-decoration: underline;
-	color: $mainColor2;
-}
-.linkButton:active {
-	text-decoration: none;
-	color: $mainColor3;
+	
+	&:hover {
+		text-decoration: underline;
+		color: $mainColor2;
+	}
+	&:active {
+		text-decoration: none;
+		color: $mainColor3;
+	}
 }
 
-.hasPlaceholder {
+.input {
+	&.number {
+		width: 40px;
+		text-align: right;
+	}
+}
+
+.hasPlaceholder, .input {
 	outline: none;
 	padding: 5px 0;
 	width: 100%;
@@ -175,9 +227,10 @@ header {
 	border: 0;
 	box-shadow: 0 1px 0px #777;
 	transition: box-shadow 200ms linear;
-}
-.hasPlaceholder:focus {
-	box-shadow: 0 2px 0px $mainColor;
+	
+	&:focus {
+		box-shadow: 0 2px 0px $mainColor;
+	}
 }
 .isPlaceholder {
 	position: absolute;
@@ -185,13 +238,74 @@ header {
 	transition: all 200ms ease-in-out;
 	pointer-events: none;
 }
-.hasPlaceholder:invalid + .isPlaceholder {
-	margin: -25px 0 0;
-	font-size: 14px;
+.hasPlaceholder {
+	&:invalid + .isPlaceholder {
+		margin: -25px 0 0;
+		font-size: 14px;
+	}
+
+	&:focus + .isPlaceholder,
+	&:valid + .isPlaceholder {
+		margin: -45px 0 0;
+		font-size: 10px;
+		color: $mainColor;
+	}
 }
-.hasPlaceholder:focus + .isPlaceholder,
-.hasPlaceholder:valid + .isPlaceholder {
-	margin: -45px 0 0;
-	font-size: 10px;
-	color: $mainColor;
+
+/**
+ * https://codepen.io/andreasstorm/pen/ZGjNwZ
+ */
+.checkbox {
+	display: inline-block;
+	
+	label {
+		position: relative;
+		display: block;
+		height: 20px;
+		width: 44px;
+		background: #898989;
+		border-radius: 100px;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		
+		&:after {
+			position: absolute;
+			left: -2px;
+			top: -3px;
+			display: block;
+			width: 26px;
+			height: 26px;
+			border-radius: 100px;
+			background: #fff;
+			box-shadow: 0px 2px 3px rgba(0,0,0,.5);
+			content: '';
+			transition: all 0.3s ease;
+		}
+		
+		&:active:after {
+			transform: scale(1.15, 0.85);
+		}
+	}
+	
+	input {
+		display: none;
+		
+		&:checked ~ label {
+			background: $mainColor;
+		}
+		
+		&:checked ~ label:after {
+			left: 20px;
+			background: $mainColor2;
+		}
+		
+		&:disabled ~ label {
+			background: #ddd;
+			pointer-events: none;
+		}
+		
+		&:disabled ~ label:after {
+			background: #bbb;
+		}
+	}
 }
