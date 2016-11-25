@@ -426,12 +426,14 @@ class Main {
 				restore_error_handler();
 			}
 			if (!$regexErrorTest) {
-				$list = $this->startSearch('/'.implode('/', $pathArr), $q, $regex, $case, $maxSize * 1024 * 1024);
+				$searchPath = '/'.implode('/', $pathArr);
+				$list = $this->startSearch($searchPath, $q, $regex, $case, $maxSize * 1024 * 1024);
 				$results = count($list);
 				$this->body .= '<div class="label" id="results">'.($results >= 100 ? '99+' : $results).' Result'.($results == 1 ? '' : 's').'</div>';
 				foreach ($list as $f) {
 					$fileHref = $this->getHref([
 						'path' => $f,
+						'pb' => $searchPath,
 						'qb' => $q,
 						'regex' => $regex,
 						'case' => $case,
@@ -465,8 +467,18 @@ class Main {
 		$s = scandir($path);
 		foreach ($s as $f) {
 			if ($f == '.' || $f == '..') continue;
-			elseif (is_dir($path.'/'.$f)) $queue[] = $path.'/'.$f;
-			else {
+			elseif (is_dir($path.'/'.$f)) {
+				// also find folders (if the name matches)
+				if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $f) ||
+					!$regex && (
+						$case && strpos($f, $q) !== false ||
+						!$case && stripos($f, $q) !== false
+					)) {
+					$found[] = $path.'/'.$f;
+				}
+				
+				$queue[] = $path.'/'.$f;
+			} else {
 				if (@filesize($path.'/'.$f) <= $maxSize) {
 					// check source of file and file name
 					$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
@@ -506,8 +518,9 @@ class Main {
 		// search query backup (back to search)
 		if (isset($_GET['qb'])) {
 			$searchHref = $this->getHref([
-				'q' => $_GET['qb']
-			], null, ['qb']);
+				'q' => $_GET['qb'],
+				'path' => $_GET['pb']
+			], null, ['qb', 'pb', 'action']);
 			$this->html('listItemBack', [
 				'parentFolderHref' => $searchHref,
 				'icon' => $this->icon('magnify', '000'),
@@ -644,6 +657,20 @@ class Main {
 	 * list the content (files and folders) of a folder
 	 */
 	private function listFolderContent($path, $pathArr, $dirname) {
+		// search query backup (back to search)
+		if (isset($_GET['qb'])) {
+			$searchHref = $this->getHref([
+				'q' => $_GET['qb'],
+				'path' => $_GET['pb']
+			], null, ['qb', 'pb']);
+			$this->html('listItemBack', [
+				'parentFolderHref' => $searchHref,
+				'icon' => $this->icon('magnify', '000'),
+				'label' => 'back to',
+				'parentFolderName' => 'Search "'.$_GET['qb'].'"'
+			]);
+		}
+		
 		if ($dirname !== '') {
 			$parentFolderHref = $this->getHref([
 				'path' => '/'.implode('/', $pathArr)
