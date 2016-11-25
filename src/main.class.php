@@ -339,47 +339,52 @@ class Main {
 	 * starts the (folder recursive) search
 	 */
 	private function startSearch($path, $q, $regex, $case, $maxSize) {
-		$limitResults = 100;
-		$queue = [];
 		$found = [];
-		$s = scandir($path);
-		foreach ($s as $f) {
-			if ($f == '.' || $f == '..') continue;
-			elseif (is_dir($path.'/'.$f)) {
-				// also find folders (if the name matches)
-				if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $f) ||
-					!$regex && (
-						$case && strpos($f, $q) !== false ||
-						!$case && stripos($f, $q) !== false
-					)) {
-					$found[] = $path.'/'.$f;
-				}
-				
-				$queue[] = $path.'/'.$f;
-			} else {
-				if (@filesize($path.'/'.$f) <= $maxSize) {
-					// check source of file and file name
-					$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
-					
-					// I'm sorry, it's 2am
-					if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $src) ||
+		
+		if (is_readable($path)) {
+			$limitResults = 100;
+			$queue = [];
+			
+			$s = scandir($path);
+			foreach ($s as $f) {
+				if ($f == '.' || $f == '..') continue;
+				elseif (is_dir($path.'/'.$f)) {
+					// also find folders (if the name matches)
+					if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $f) ||
 						!$regex && (
-							$case && strpos($src, $q) !== false ||
-							!$case && stripos($src, $q) !== false
+							$case && strpos($f, $q) !== false ||
+							!$case && stripos($f, $q) !== false
 						)) {
 						$found[] = $path.'/'.$f;
 					}
+					
+					$queue[] = $path.'/'.$f;
+				} else {
+					if (@filesize($path.'/'.$f) <= $maxSize) {
+						// check source of file and file name
+						$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
+						
+						// I'm sorry, it's 2am
+						if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $src) ||
+							!$regex && (
+								$case && strpos($src, $q) !== false ||
+								!$case && stripos($src, $q) !== false
+							)) {
+							$found[] = $path.'/'.$f;
+						}
+					}
 				}
-			}
-			if (count($found) > $limitResults) break;
-		}
-		
-		if (count($found) < $limitResults && $queue) {
-			foreach ($queue as $dir) {
-				$found = array_merge($found, $this->startSearch($dir, $q, $regex, $case, $maxSize));
 				if (count($found) > $limitResults) break;
 			}
+			
+			if (count($found) < $limitResults && $queue) {
+				foreach ($queue as $dir) {
+					$found = array_merge($found, $this->startSearch($dir, $q, $regex, $case, $maxSize));
+					if (count($found) > $limitResults) break;
+				}
+			}
 		}
+		
 		return $found;
 	}
 	
@@ -434,6 +439,15 @@ class Main {
 						'value' => readlink($path)
 					]);
 				}
+				
+				// file permissions
+				$symbolic = $this->getPermissions($path, 'symbolic');
+				$numeric = $this->getPermissions($path, 'numeric');
+				$this->html('listTableRow', [
+					'key' => 'File Permissions',
+					'value' => $numeric.' ('.$symbolic.')'
+				]);
+				
 				$this->html('listTableRow', [
 					'key' => 'File Size',
 					'value' => $this->formatSize(filesize($path))
@@ -485,7 +499,8 @@ class Main {
 				}
 				$this->html('listTableEnd');
 				$this->html('fileInfoButtons', [
-					'viewHref' => $this->getHref(['action' => 'view'])
+					'viewHref' => is_readable($path) ? $this->getHref(['action' => 'view']) : '',
+					'viewAttr' => is_readable($path) ? '' : ' data-disabled'
 				]);
 				break;
 			case 'view':
@@ -564,29 +579,39 @@ class Main {
 			]);
 		}
 		
-		$s = scandir($path);
-		if (count($s) == 2) {
-			$this->html('emptyFolderMessage');
-		} else {
-			foreach ($s as $f) {
-				if ($f == '.' || $f == '..') continue;
-				$fileHref = $this->getHref([
-					'path' => $path.'/'.$f
-				]);
-				$size = $this->fileSize($path.'/'.$f, microtime(1));
-				
-				$ext = pathinfo($f, PATHINFO_EXTENSION);
-				if ($ext) $ext = '.'.$ext;
-				
-				$this->html('listItem', [
-					'fileHref' => $fileHref,
-					'fileIcon' => $this->iconByFile($path.'/'.$f),
-					'fileName' => basename($f, $ext),
-					'fileExt' => $ext,
-					'gt' => ($size[1] ? '&gt; ' : ''),
-					'fileSize' => $this->formatSize($size[0])
-				]);
+		if (is_readable($path)) {
+			$s = scandir($path);
+			if (count($s) == 2) {
+				$this->html('notice', [ 'notice' => 'Empty Folder' ]);
+			} else {
+				foreach ($s as $f) {
+					if ($f == '.' || $f == '..') continue;
+					$fileHref = $this->getHref([
+						'path' => $path.'/'.$f
+					]);
+					if (is_dir($path.'/'.$f) && !is_readable($path.'/'.$f)) {
+						$size = null;
+						$sizeStr = '-';
+					} else {
+						$size = $this->fileSize($path.'/'.$f, microtime(1));
+						$sizeStr = $this->formatSize($size[0]);
+					}
+					
+					$ext = pathinfo($f, PATHINFO_EXTENSION);
+					if ($ext) $ext = '.'.$ext;
+					
+					$this->html('listItem', [
+						'fileHref' => $fileHref,
+						'fileIcon' => $this->iconByFile($path.'/'.$f),
+						'fileName' => $f == $ext ? '' : basename($f, $ext),
+						'fileExt' => $ext,
+						'gt' => ($size !== null && $size[1] ? '&gt; ' : ''),
+						'fileSize' => $sizeStr
+					]);
+				}
 			}
+		} else {
+			$this->html('notice', [ 'notice' => 'No read permission' ]);
 		}
 	}
 }
