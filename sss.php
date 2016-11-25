@@ -605,7 +605,7 @@ class Main {
 					'path' => '/'.implode('/', $pathArr)
 				]);
 				$parentFolderName = array_pop($pathArr);
-				if ($parentFolderName == '') $parentFolderName = 'root';
+				if ($parentFolderName == '') $parentFolderName = '/';
 				
 				$this->html('listItemBack', [
 					'parentFolderHref' => $parentFolderHref,
@@ -754,7 +754,7 @@ class Main {
 				'path' => '/'.implode('/', $pathArr)
 			]);
 			$parentFolderName = array_pop($pathArr);
-			if ($parentFolderName == '') $parentFolderName = 'root';
+			if ($parentFolderName == '') $parentFolderName = '/';
 			
 			$this->html('listItemBack', [
 				'parentFolderHref' => $parentFolderHref,
@@ -771,14 +771,15 @@ class Main {
 			} else {
 				foreach ($s as $f) {
 					if ($f == '.' || $f == '..') continue;
+					$filePath = ($path == '/' ? '' : $path).'/'.$f;
 					$fileHref = $this->getHref([
-						'path' => $path.'/'.$f
+						'path' => $filePath
 					]);
-					if (is_dir($path.'/'.$f) && !is_readable($path.'/'.$f)) {
+					if (is_dir($filePath) && !is_readable($filePath)) {
 						$size = null;
 						$sizeStr = '-';
 					} else {
-						$size = $this->fileSize($path.'/'.$f, microtime(1));
+						$size = $this->fileSize($filePath, microtime(1));
 						$sizeStr = $this->formatSize($size[0]);
 					}
 					
@@ -787,7 +788,7 @@ class Main {
 					
 					$this->html('listItem', [
 						'fileHref' => $fileHref,
-						'fileIcon' => $this->iconByFile($path.'/'.$f),
+						'fileIcon' => $this->iconByFile($filePath),
 						'fileName' => $f == $ext ? '' : basename($f, $ext),
 						'fileExt' => $ext,
 						'gt' => ($size !== null && $size[1] ? '&gt; ' : ''),
@@ -823,7 +824,7 @@ function htmls() { return [
 	'fileViewButtons' => '<div class="buttonsContainer">'.PHP_EOL.'	<a href=":infoHref" class="button">Back</a>'.PHP_EOL.'</div>',
 	'image' => '<img src="data::mime;base64,:base64" alt=":alt" class=":class">',
 	'indexHeader' => '<section id="wrapper">'.PHP_EOL.'	<header>'.PHP_EOL.'		<span>Index</span>'.PHP_EOL.'		:@search'.PHP_EOL.'	</header>'.PHP_EOL.'	<div class="content">',
-	'listItem' => '<div class="listItem">'.PHP_EOL.'	<div class="fileIcon">'.PHP_EOL.'		<a href=":fileHref">:@fileIcon</a>'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileName">'.PHP_EOL.'		<a href=":fileHref">:fileName<span>:fileExt</span></a>'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileActions">'.PHP_EOL.'		:gt:fileSize'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
+	'listItem' => '<div class="listItem">'.PHP_EOL.'	<div class="fileIcon">'.PHP_EOL.'		<a href=":fileHref">:@fileIcon</a>'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileName">'.PHP_EOL.'		<a href=":fileHref">:fileName<span>:fileExt</span></a>'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileActions">'.PHP_EOL.'		:@gt:fileSize'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
 	'listItemArchive' => '<div class="listItem">'.PHP_EOL.'	<div class="fileIcon">'.PHP_EOL.'		:@fileIcon'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileName">'.PHP_EOL.'		:fileName<span>:fileExt</span>'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
 	'listItemBack' => '<div class="listItem">'.PHP_EOL.'	<div class="fileIcon">'.PHP_EOL.'		<a href=":parentFolderHref">:@icon</a>'.PHP_EOL.'	</div>'.PHP_EOL.'	<div class="fileName">'.PHP_EOL.'		<a href=":parentFolderHref"><span>:label</span> :parentFolderName</a>'.PHP_EOL.'	</div>'.PHP_EOL.'</div>'.PHP_EOL.'',
 	'listTableEnd' => '</table>',

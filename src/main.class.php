@@ -478,7 +478,7 @@ class Main {
 					'path' => '/'.implode('/', $pathArr)
 				]);
 				$parentFolderName = array_pop($pathArr);
-				if ($parentFolderName == '') $parentFolderName = 'root';
+				if ($parentFolderName == '') $parentFolderName = '/';
 				
 				$this->html('listItemBack', [
 					'parentFolderHref' => $parentFolderHref,
@@ -627,7 +627,7 @@ class Main {
 				'path' => '/'.implode('/', $pathArr)
 			]);
 			$parentFolderName = array_pop($pathArr);
-			if ($parentFolderName == '') $parentFolderName = 'root';
+			if ($parentFolderName == '') $parentFolderName = '/';
 			
 			$this->html('listItemBack', [
 				'parentFolderHref' => $parentFolderHref,
@@ -644,14 +644,15 @@ class Main {
 			} else {
 				foreach ($s as $f) {
 					if ($f == '.' || $f == '..') continue;
+					$filePath = ($path == '/' ? '' : $path).'/'.$f;
 					$fileHref = $this->getHref([
-						'path' => $path.'/'.$f
+						'path' => $filePath
 					]);
-					if (is_dir($path.'/'.$f) && !is_readable($path.'/'.$f)) {
+					if (is_dir($filePath) && !is_readable($filePath)) {
 						$size = null;
 						$sizeStr = '-';
 					} else {
-						$size = $this->fileSize($path.'/'.$f, microtime(1));
+						$size = $this->fileSize($filePath, microtime(1));
 						$sizeStr = $this->formatSize($size[0]);
 					}
 					
@@ -660,7 +661,7 @@ class Main {
 					
 					$this->html('listItem', [
 						'fileHref' => $fileHref,
-						'fileIcon' => $this->iconByFile($path.'/'.$f),
+						'fileIcon' => $this->iconByFile($filePath),
 						'fileName' => $f == $ext ? '' : basename($f, $ext),
 						'fileExt' => $ext,
 						'gt' => ($size !== null && $size[1] ? '&gt; ' : ''),
