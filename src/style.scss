@@ -162,6 +162,23 @@ header {
 	margin: 10px;
 }
 
+.src-line {
+	display: inline-block;
+	color: rgba(0, 0, 0, .3);
+	width: 50px;
+	text-align: right;
+	padding: 0 10px;
+	user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	text-decoration: none;
+	
+	&:target {
+		background-color: rgb(248, 238, 199);
+	}
+}
+
 /* Form */
 .formElement {
 	padding: 25px 0 15px;
@@ -190,6 +207,14 @@ header {
 	
 	&:active {
 		background-color: $mainColor3;
+	}
+	&.disabled, &[disabled], &[data-disabled] {
+		opacity: .3;
+		cursor: not-allowed;
+		
+		&:hover, &:active {
+			background-color: $mainColor;
+		}
 	}
 }
 

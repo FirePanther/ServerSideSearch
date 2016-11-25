@@ -36,6 +36,27 @@ class Main {
 	}
 	
 	/**
+	 * (boolean) has this page any content?
+	 */
+	public function hasContent() {
+		return $this->content ? true : false;
+	}
+	
+	/**
+	 * returns the pages title (meta)
+	 */
+	public function getTitle() {
+		return ($this->title ? $this->title.' • ' : '').'FP: ServerSideSearch';
+	}
+	
+	/**
+	 * returns the pages body (content)
+	 */
+	public function getBody() {
+		return $this->body;
+	}
+	
+	/**
 	 * (boolean) checks if the user is logged in
 	 */
 	public function isLoggedIn() {
@@ -74,7 +95,7 @@ class Main {
 				'image' => ['png', 'bmp', 'gif', 'jpg', 'jpeg'],
 				'css' => ['css', 'less', 'sass', 'scss'],
 				'js' => ['js', 'coffee', 'ts'],
-				'text' => ['txt', 'rtf', 'ini', 'htaccess', 'htpasswd'],
+				'text' => ['txt', 'rtf', 'ini', 'htaccess', 'htpasswd', 'log'],
 				'archive' => ['zip', 'rar', 'tar', 'gz', 'bz', 'bz2', '7zip']
 			];
 			foreach ($icons as $i => $exts) {
@@ -135,21 +156,70 @@ class Main {
 		if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
 		
 		if (is_dir($file)) {
-			$s = scandir($file);
-			foreach ($s as $f) {
-				if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
-				
-				if ($f == '.' || $f == '..') continue;
-				elseif (is_dir($file.'/'.$f)) {
-					$folderSize = $this->fileSize($file.'/'.$f, $starttime);
-					$size += $folderSize[0];
-					if ($folderSize[1]) $cancelled = true;
-				} else $size += @filesize($file.'/'.$f);
+			if (is_readable($file)) {
+				$s = scandir($file);
+				foreach ($s as $f) {
+					if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
+					
+					if ($f == '.' || $f == '..') continue;
+					elseif (is_dir($file.'/'.$f)) {
+						$folderSize = $this->fileSize($file.'/'.$f, $starttime);
+						$size += $folderSize[0];
+						if ($folderSize[1]) $cancelled = true;
+					} else $size += @filesize($file.'/'.$f);
+				}
 			}
 		} else {
 			$size += @filesize($file);
 		}
 		return [$size, $cancelled];
+	}
+
+	
+	/**
+	 * gets file permissions and formats them into the desired type
+	 */
+	private function getPermissions($path, $type) {
+		$perms = fileperms($path);
+		switch ($type) {
+			case 'symbolic':
+				$sym = '-';
+				$t = filetype($path);
+				switch ($t) {
+					case 'char':
+					case 'block':
+					case 'link':
+					case 'dir':
+						$sym = $t[0];
+						break;
+				}
+				
+				// by PHP manual examples: http://php.net/manual/en/function.fileperms.php
+				// Owner
+				$sym .= $perms & 0x0100 ? 'r' : '-';
+				$sym .= $perms & 0x0080 ? 'w' : '-';
+				$sym .= $perms & 0x0040 ?
+					$perms & 0x0800 ? 's' : 'x'  :
+					$perms & 0x0800 ? 'S' : '-';
+				
+				// Group
+				$sym .= $perms & 0x0020 ? 'r' : '-';
+				$sym .= $perms & 0x0010 ? 'w' : '-';
+				$sym .= $perms & 0x0008 ?
+					($perms & 0x0400 ? 's' : 'x')  :
+					($perms & 0x0400 ? 'S' : '-');
+				
+				// World
+				$sym .= $perms & 0x0004 ? 'r' : '-';
+				$sym .= $perms & 0x0002 ? 'w' : '-';
+				$sym .= $perms & 0x0001 ?
+					($perms & 0x0200 ? 't' : 'x')  :
+					($perms & 0x0200 ? 'T' : '-');
+				
+				return $sym;
+			case 'numeric':
+				return substr(sprintf('%o', $perms), -4);
+		}
 	}
 	
 	/**
@@ -169,27 +239,6 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
-	 */
-	public function hasContent() {
-		return $this->content ? true : false;
-	}
-	
-	/**
-	 * returns the pages title (meta)
-	 */
-	public function getTitle() {
-		return ($this->title ? $this->title.' • ' : '').'FP: ServerSideSearch';
-	}
-	
-	/**
-	 * returns the pages body (content)
-	 */
-	public function getBody() {
-		return $this->body;
-	}
-	
-	/**
 	 * highlights the content; if it's not a php source, try to highlight it
 	 * as well
 	 */
@@ -200,10 +249,19 @@ class Main {
 			$src = '<? '.$src;
 			$addedPhp = true;
 		}
-		$hSrc = highlight_string($src, 1);
+		$hSrc = str_replace("\n", '', highlight_string($src, 1));
 		if ($addedPhp) {
 			$hSrc = implode('', explode('&lt;?&nbsp;', $hSrc, 2));
 		}
+		
+		// add line numbers
+		$hSrc = str_replace(['<code>', '</code>'], '', $hSrc);
+		$hSrcArr = explode('<br />', $hSrc);
+		for ($i = 0, $l = count($hSrcArr); $i < $l; $i++) {
+			$hSrcArr[$i] = '<a href="#line-'.($i + 1).'" id="line-'.($i + 1).'" class="src-line">'.($i + 1).'</a>'.$hSrcArr[$i];
+		}
+		$hSrc = '<code>'.implode('<br />', $hSrcArr).'</code>';
+		
 		return $hSrc;
 	}
 	

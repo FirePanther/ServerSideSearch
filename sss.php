@@ -62,6 +62,9 @@ header .iconButton { float: right; }
 
 .imagePreview { max-width: calc(100% - 20px); max-height: calc(100% - 20px); box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2); margin: 10px; }
 
+.src-line { display: inline-block; color: rgba(0, 0, 0, 0.3); width: 50px; text-align: right; padding: 0 10px; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; text-decoration: none; }
+.src-line:target { background-color: #f8eec7; }
+
 /* Form */
 .formElement { padding: 25px 0 15px; }
 
@@ -70,6 +73,8 @@ header .iconButton { float: right; }
 .button { background-color: #5390F5; border: 0; color: #FFF; text-transform: uppercase; padding: 15px 25px; cursor: pointer; font-family: \'Open Sans\', sans-serif; font-size: 13px; transition: all 200ms linear; outline: 0; text-decoration: none; }
 .button:hover { background-color: #3C59D6; }
 .button:active { background-color: #1F75CF; }
+.button.disabled, .button[disabled], .button[data-disabled] { opacity: .3; cursor: not-allowed; }
+.button.disabled:hover, .button.disabled:active, .button[disabled]:hover, .button[disabled]:active, .button[data-disabled]:hover, .button[data-disabled]:active { background-color: #5390F5; }
 
 .linkButton { padding: 15px 25px; color: #5390F5; font-weight: bold; text-transform: uppercase; text-decoration: none; font-size: 13px; }
 .linkButton:hover { text-decoration: underline; color: #3C59D6; }
@@ -158,6 +163,27 @@ class Main {
 	}
 	
 	/**
+	 * (boolean) has this page any content?
+	 */
+	public function hasContent() {
+		return $this->content ? true : false;
+	}
+	
+	/**
+	 * returns the pages title (meta)
+	 */
+	public function getTitle() {
+		return ($this->title ? $this->title.' • ' : '').'FP: ServerSideSearch';
+	}
+	
+	/**
+	 * returns the pages body (content)
+	 */
+	public function getBody() {
+		return $this->body;
+	}
+	
+	/**
 	 * (boolean) checks if the user is logged in
 	 */
 	public function isLoggedIn() {
@@ -196,7 +222,7 @@ class Main {
 				'image' => ['png', 'bmp', 'gif', 'jpg', 'jpeg'],
 				'css' => ['css', 'less', 'sass', 'scss'],
 				'js' => ['js', 'coffee', 'ts'],
-				'text' => ['txt', 'rtf', 'ini', 'htaccess', 'htpasswd'],
+				'text' => ['txt', 'rtf', 'ini', 'htaccess', 'htpasswd', 'log'],
 				'archive' => ['zip', 'rar', 'tar', 'gz', 'bz', 'bz2', '7zip']
 			];
 			foreach ($icons as $i => $exts) {
@@ -257,21 +283,70 @@ class Main {
 		if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
 		
 		if (is_dir($file)) {
-			$s = scandir($file);
-			foreach ($s as $f) {
-				if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
-				
-				if ($f == '.' || $f == '..') continue;
-				elseif (is_dir($file.'/'.$f)) {
-					$folderSize = $this->fileSize($file.'/'.$f, $starttime);
-					$size += $folderSize[0];
-					if ($folderSize[1]) $cancelled = true;
-				} else $size += @filesize($file.'/'.$f);
+			if (is_readable($file)) {
+				$s = scandir($file);
+				foreach ($s as $f) {
+					if ($starttime < microtime(1) - $timeout) return [$size, true]; // timeout
+					
+					if ($f == '.' || $f == '..') continue;
+					elseif (is_dir($file.'/'.$f)) {
+						$folderSize = $this->fileSize($file.'/'.$f, $starttime);
+						$size += $folderSize[0];
+						if ($folderSize[1]) $cancelled = true;
+					} else $size += @filesize($file.'/'.$f);
+				}
 			}
 		} else {
 			$size += @filesize($file);
 		}
 		return [$size, $cancelled];
+	}
+
+	
+	/**
+	 * gets file permissions and formats them into the desired type
+	 */
+	private function getPermissions($path, $type) {
+		$perms = fileperms($path);
+		switch ($type) {
+			case 'symbolic':
+				$sym = '-';
+				$t = filetype($path);
+				switch ($t) {
+					case 'char':
+					case 'block':
+					case 'link':
+					case 'dir':
+						$sym = $t[0];
+						break;
+				}
+				
+				// by PHP manual examples: http://php.net/manual/en/function.fileperms.php
+				// Owner
+				$sym .= $perms & 0x0100 ? 'r' : '-';
+				$sym .= $perms & 0x0080 ? 'w' : '-';
+				$sym .= $perms & 0x0040 ?
+					$perms & 0x0800 ? 's' : 'x'  :
+					$perms & 0x0800 ? 'S' : '-';
+				
+				// Group
+				$sym .= $perms & 0x0020 ? 'r' : '-';
+				$sym .= $perms & 0x0010 ? 'w' : '-';
+				$sym .= $perms & 0x0008 ?
+					($perms & 0x0400 ? 's' : 'x')  :
+					($perms & 0x0400 ? 'S' : '-');
+				
+				// World
+				$sym .= $perms & 0x0004 ? 'r' : '-';
+				$sym .= $perms & 0x0002 ? 'w' : '-';
+				$sym .= $perms & 0x0001 ?
+					($perms & 0x0200 ? 't' : 'x')  :
+					($perms & 0x0200 ? 'T' : '-');
+				
+				return $sym;
+			case 'numeric':
+				return substr(sprintf('%o', $perms), -4);
+		}
 	}
 	
 	/**
@@ -291,27 +366,6 @@ class Main {
 	}
 	
 	/**
-	 * (boolean) has this page any content?
-	 */
-	public function hasContent() {
-		return $this->content ? true : false;
-	}
-	
-	/**
-	 * returns the pages title (meta)
-	 */
-	public function getTitle() {
-		return ($this->title ? $this->title.' • ' : '').'FP: ServerSideSearch';
-	}
-	
-	/**
-	 * returns the pages body (content)
-	 */
-	public function getBody() {
-		return $this->body;
-	}
-	
-	/**
 	 * highlights the content; if it's not a php source, try to highlight it
 	 * as well
 	 */
@@ -322,10 +376,19 @@ class Main {
 			$src = '<? '.$src;
 			$addedPhp = true;
 		}
-		$hSrc = highlight_string($src, 1);
+		$hSrc = str_replace("\n", '', highlight_string($src, 1));
 		if ($addedPhp) {
 			$hSrc = implode('', explode('&lt;?&nbsp;', $hSrc, 2));
 		}
+		
+		// add line numbers
+		$hSrc = str_replace(['<code>', '</code>'], '', $hSrc);
+		$hSrcArr = explode('<br />', $hSrc);
+		for ($i = 0, $l = count($hSrcArr); $i < $l; $i++) {
+			$hSrcArr[$i] = '<a href="#line-'.($i + 1).'" id="line-'.($i + 1).'" class="src-line">'.($i + 1).'</a>'.$hSrcArr[$i];
+		}
+		$hSrc = '<code>'.implode('<br />', $hSrcArr).'</code>';
+		
 		return $hSrc;
 	}
 	
@@ -461,47 +524,52 @@ class Main {
 	 * starts the (folder recursive) search
 	 */
 	private function startSearch($path, $q, $regex, $case, $maxSize) {
-		$limitResults = 100;
-		$queue = [];
 		$found = [];
-		$s = scandir($path);
-		foreach ($s as $f) {
-			if ($f == '.' || $f == '..') continue;
-			elseif (is_dir($path.'/'.$f)) {
-				// also find folders (if the name matches)
-				if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $f) ||
-					!$regex && (
-						$case && strpos($f, $q) !== false ||
-						!$case && stripos($f, $q) !== false
-					)) {
-					$found[] = $path.'/'.$f;
-				}
-				
-				$queue[] = $path.'/'.$f;
-			} else {
-				if (@filesize($path.'/'.$f) <= $maxSize) {
-					// check source of file and file name
-					$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
-					
-					// I'm sorry, it's 2am
-					if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $src) ||
+		
+		if (is_readable($path)) {
+			$limitResults = 100;
+			$queue = [];
+			
+			$s = scandir($path);
+			foreach ($s as $f) {
+				if ($f == '.' || $f == '..') continue;
+				elseif (is_dir($path.'/'.$f)) {
+					// also find folders (if the name matches)
+					if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $f) ||
 						!$regex && (
-							$case && strpos($src, $q) !== false ||
-							!$case && stripos($src, $q) !== false
+							$case && strpos($f, $q) !== false ||
+							!$case && stripos($f, $q) !== false
 						)) {
 						$found[] = $path.'/'.$f;
 					}
+					
+					$queue[] = $path.'/'.$f;
+				} else {
+					if (@filesize($path.'/'.$f) <= $maxSize) {
+						// check source of file and file name
+						$src = $f.PHP_EOL.file_get_contents($path.'/'.$f);
+						
+						// I'm sorry, it's 2am
+						if ($regex && preg_match('/'.$q.'/'.($case ? '' : 'i'), $src) ||
+							!$regex && (
+								$case && strpos($src, $q) !== false ||
+								!$case && stripos($src, $q) !== false
+							)) {
+							$found[] = $path.'/'.$f;
+						}
+					}
 				}
-			}
-			if (count($found) > $limitResults) break;
-		}
-		
-		if (count($found) < $limitResults && $queue) {
-			foreach ($queue as $dir) {
-				$found = array_merge($found, $this->startSearch($dir, $q, $regex, $case, $maxSize));
 				if (count($found) > $limitResults) break;
 			}
+			
+			if (count($found) < $limitResults && $queue) {
+				foreach ($queue as $dir) {
+					$found = array_merge($found, $this->startSearch($dir, $q, $regex, $case, $maxSize));
+					if (count($found) > $limitResults) break;
+				}
+			}
 		}
+		
 		return $found;
 	}
 	
@@ -556,6 +624,15 @@ class Main {
 						'value' => readlink($path)
 					]);
 				}
+				
+				// file permissions
+				$symbolic = $this->getPermissions($path, 'symbolic');
+				$numeric = $this->getPermissions($path, 'numeric');
+				$this->html('listTableRow', [
+					'key' => 'File Permissions',
+					'value' => $numeric.' ('.$symbolic.')'
+				]);
+				
 				$this->html('listTableRow', [
 					'key' => 'File Size',
 					'value' => $this->formatSize(filesize($path))
@@ -607,7 +684,8 @@ class Main {
 				}
 				$this->html('listTableEnd');
 				$this->html('fileInfoButtons', [
-					'viewHref' => $this->getHref(['action' => 'view'])
+					'viewHref' => is_readable($path) ? $this->getHref(['action' => 'view']) : '',
+					'viewAttr' => is_readable($path) ? '' : ' data-disabled'
 				]);
 				break;
 			case 'view':
@@ -686,29 +764,39 @@ class Main {
 			]);
 		}
 		
-		$s = scandir($path);
-		if (count($s) == 2) {
-			$this->html('emptyFolderMessage');
-		} else {
-			foreach ($s as $f) {
-				if ($f == '.' || $f == '..') continue;
-				$fileHref = $this->getHref([
-					'path' => $path.'/'.$f
-				]);
-				$size = $this->fileSize($path.'/'.$f, microtime(1));
-				
-				$ext = pathinfo($f, PATHINFO_EXTENSION);
-				if ($ext) $ext = '.'.$ext;
-				
-				$this->html('listItem', [
-					'fileHref' => $fileHref,
-					'fileIcon' => $this->iconByFile($path.'/'.$f),
-					'fileName' => basename($f, $ext),
-					'fileExt' => $ext,
-					'gt' => ($size[1] ? '&gt; ' : ''),
-					'fileSize' => $this->formatSize($size[0])
-				]);
+		if (is_readable($path)) {
+			$s = scandir($path);
+			if (count($s) == 2) {
+				$this->html('notice', [ 'notice' => 'Empty Folder' ]);
+			} else {
+				foreach ($s as $f) {
+					if ($f == '.' || $f == '..') continue;
+					$fileHref = $this->getHref([
+						'path' => $path.'/'.$f
+					]);
+					if (is_dir($path.'/'.$f) && !is_readable($path.'/'.$f)) {
+						$size = null;
+						$sizeStr = '-';
+					} else {
+						$size = $this->fileSize($path.'/'.$f, microtime(1));
+						$sizeStr = $this->formatSize($size[0]);
+					}
+					
+					$ext = pathinfo($f, PATHINFO_EXTENSION);
+					if ($ext) $ext = '.'.$ext;
+					
+					$this->html('listItem', [
+						'fileHref' => $fileHref,
+						'fileIcon' => $this->iconByFile($path.'/'.$f),
+						'fileName' => $f == $ext ? '' : basename($f, $ext),
+						'fileExt' => $ext,
+						'gt' => ($size !== null && $size[1] ? '&gt; ' : ''),
+						'fileSize' => $sizeStr
+					]);
+				}
 			}
+		} else {
+			$this->html('notice', [ 'notice' => 'No read permission' ]);
 		}
 	}
 }
@@ -730,9 +818,8 @@ function icons() { return [
 function htmls() { return [
 	'breadcrumb' => '<div class="listItem">'.PHP_EOL.'	<div class="breadcrumb">'.PHP_EOL.'		:@breadcrumb'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
 	'code' => '<div class="code">'.PHP_EOL.'	:@code'.PHP_EOL.'</div>',
-	'emptyFolderMessage' => '<div class="notice">Empty Folder</div>',
 	'errorMessage' => '<section id="wrapper">'.PHP_EOL.'	<form method="post">'.PHP_EOL.'		<div class="loginBox">'.PHP_EOL.'			<header>Login</header>'.PHP_EOL.'			<div class="content">'.PHP_EOL.'				:@error'.PHP_EOL.'				<div class="formElement">'.PHP_EOL.'					<input type="text" required class="hasPlaceholder" name="username">'.PHP_EOL.'					<div class="isPlaceholder">Username</div>'.PHP_EOL.'				</div>'.PHP_EOL.'				<div class="formElement">'.PHP_EOL.'					<input type="password" required class="hasPlaceholder" name="password">'.PHP_EOL.'					<div class="isPlaceholder">Password</div>'.PHP_EOL.'				</div>'.PHP_EOL.'				<div class="formElement right">'.PHP_EOL.'					<input type="submit" value="Login" class="button">'.PHP_EOL.'				</div>'.PHP_EOL.'			</div>'.PHP_EOL.'		</div>'.PHP_EOL.'	</form>'.PHP_EOL.'</section>',
-	'fileInfoButtons' => '<div class="buttonsContainer">'.PHP_EOL.'	<a href=":viewHref" class="button">View</a>'.PHP_EOL.'</div>',
+	'fileInfoButtons' => '<div class="buttonsContainer">'.PHP_EOL.'	<a href=":viewHref" class="button":viewAttr>View</a>'.PHP_EOL.'</div>',
 	'fileViewButtons' => '<div class="buttonsContainer">'.PHP_EOL.'	<a href=":infoHref" class="button">Back</a>'.PHP_EOL.'</div>',
 	'image' => '<img src="data::mime;base64,:base64" alt=":alt" class=":class">',
 	'indexHeader' => '<section id="wrapper">'.PHP_EOL.'	<header>'.PHP_EOL.'		<span>Index</span>'.PHP_EOL.'		:@search'.PHP_EOL.'	</header>'.PHP_EOL.'	<div class="content">',
@@ -742,6 +829,7 @@ function htmls() { return [
 	'listTableEnd' => '</table>',
 	'listTableRow' => '<tr>'.PHP_EOL.'	<td class="key">:key</td>'.PHP_EOL.'	<td class="value">:value</td>'.PHP_EOL.'</tr>',
 	'listTableStart' => '<table class="listTable">',
+	'notice' => '<div class="notice">:notice</div>',
 	'searchBox' => '<div class="searchBox">'.PHP_EOL.'	<header>Search</header>'.PHP_EOL.'	<div class="content">'.PHP_EOL.'		<form method="post" action="#results">'.PHP_EOL.'			<div class="formElement">'.PHP_EOL.'				<input type="search" required name="q" value=":q" class="hasPlaceholder">'.PHP_EOL.'				<div class="isPlaceholder">Search</div>'.PHP_EOL.'			</div>'.PHP_EOL.'			<div class="formElement">'.PHP_EOL.'				<table class="listTable">'.PHP_EOL.'					<tr>'.PHP_EOL.'						<td class="key">Regular Expressions</td>'.PHP_EOL.'						<td class="value">'.PHP_EOL.'							<div class="checkbox">'.PHP_EOL.'								<input type="checkbox" name="regex" id="regex":regexChecked>'.PHP_EOL.'								<label for="regex"></label>'.PHP_EOL.'							</div>'.PHP_EOL.'						</td>'.PHP_EOL.'					</tr>'.PHP_EOL.'					<tr>'.PHP_EOL.'						<td class="key">Case sensitive</td>'.PHP_EOL.'						<td class="value">'.PHP_EOL.'							<div class="checkbox">'.PHP_EOL.'								<input type="checkbox" name="case" id="case":caseChecked>'.PHP_EOL.'								<label for="case"></label>'.PHP_EOL.'							</div>'.PHP_EOL.'						</td>'.PHP_EOL.'					</tr>'.PHP_EOL.'					<tr>'.PHP_EOL.'						<td class="key">Ignore larger files</td>'.PHP_EOL.'						<td class="value">'.PHP_EOL.'							<input class="input number" type="number" value=":maxSize" name="maxSize" step=".1"> MB+'.PHP_EOL.'						</td>'.PHP_EOL.'					</tr>'.PHP_EOL.'				</table>'.PHP_EOL.'			</div>'.PHP_EOL.'			<div class="formElement right">'.PHP_EOL.'				<input type="submit" class="button" value="Search">'.PHP_EOL.'			</div>'.PHP_EOL.'		</form>'.PHP_EOL.'	</div>'.PHP_EOL.'</div>',
 	'svg' => '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="24" height="24" viewBox="0 0 24 24">'.PHP_EOL.'	:@icon'.PHP_EOL.'</svg>',
 ]; }
