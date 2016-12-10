@@ -2,7 +2,7 @@
 /**
  * This file concats the files from the src folder into a single file.
  *
- * @author           Suat Secmen (http://suat.be)
+ * @author           Suat Secmen (http://su.at)
  * @copyright        2016 Suat Secmen
  * @license          MIT License
  */
