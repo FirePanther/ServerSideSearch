@@ -1,8 +1,8 @@
 {
   "name": "serversidesearch",
   "version":"0.0.1",
-  "email": "git@suat.be",
-  "url": "https://suat.be",
+  "email": "git@su.at",
+  "url": "https://su.at",
   "description": "A little server side searching script. It allows you to quickly check out your files and folders and gives you the ability to do some quick actions.",
   "repository": {
     "type": "git",
