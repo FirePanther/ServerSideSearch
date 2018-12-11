@@ -34,7 +34,7 @@ you can add a short password without hashing it.
 ## Preview
 
 [See some functionalities, click here for more screenshots](https://github.com/FirePanther/ServerSideSearch/tree/master/screenshots)  
-[![ServerSideScript Preview](http://i.dv.tl/sss-preview.png)](https://github.com/FirePanther/ServerSideSearch/tree/master/screenshots)
+[![ServerSideScript Preview](https://picul.de/view/QAZ)](https://github.com/FirePanther/ServerSideSearch/tree/master/screenshots)
 
 # License
 
